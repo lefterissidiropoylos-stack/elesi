@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ELESI Pi App</title>
+  <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+</head>
+<body>
+
+<h1>Welcome to ELESI</h1>
+
+<button onclick="login()">Login with Pi</button>
+
+<script>
+  Pi.init({ version: "2.0", sandbox: true });
+
+  async function login() {
+    try {
+      const scopes = ['username', 'payments'];
+      const auth = await Pi.authenticate(scopes, function(payment) {}, function(payment) {});
+      alert("Hello " + auth.user.username);
+    } catch (err) {
+      alert("Error: " + err);
+    }
+  }
+</script>
+
+</body>
+</html>
