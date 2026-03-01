@@ -13,16 +13,18 @@
 <script>
   Pi.init({ version: "2.0", sandbox: true });
 
-  async function login() {
-    try {
-      const scopes = ['username', 'payments'];
-      const auth = await Pi.authenticate(scopes, function(payment) {}, function(payment) {});
-      alert("Hello " + auth.user.username);
-    } catch (err) {
-      alert("Error: " + err);
-    }
-  }
-</script>
+ async function login() {
+  try {
 
-</body>
-</html>
+    const scopes = ['username', 'payments'];
+
+    const auth = await Pi.authenticate(scopes, function(payment) {
+      console.log("Incomplete payment found", payment);
+    });
+
+    alert("Hello " + auth.user.username);
+
+  } catch (err) {
+    alert("Error: " + err);
+  }
+}
