@@ -1,20 +1,18 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>ELESI Pi App</title>
-</head>
+<script>
+Pi.init({ version: "2.0", sandbox: true });
 
-<body>
+async function login() {
+  try {
+    const scopes = ['username'];
 
-  <h1>Welcome to ELESI</h1>
+    const auth = await Pi.authenticate(scopes, function(payment) {
+      console.log("Incomplete payment found", payment);
+    });
 
-  <button onclick="login()">Login with Pi</button>
+    alert("Hello " + auth.user.username);
 
-  <script>
-    function login() {
-      alert("DOULEVEI!");
-    }
-  </script>
-
-</body>
-</html>
+  } catch (err) {
+    alert("Error: " + err);
+  }
+}
+</script>
