@@ -2,31 +2,19 @@
 <html>
 <head>
   <title>ELESI Pi App</title>
-  <script src="https://sdk.minepi.com/pi-sdk.js"></script>
 </head>
+
 <body>
 
-<h1>Welcome to ELESI</h1>
+  <h1>Welcome to ELESI</h1>
 
-function login() {
-  alert("DOULEVEI!");
-}
+  <button onclick="login()">Login with Pi</button>
 
-<script>
-  Pi.init({ version: "2.0" });
+  <script>
+    function login() {
+      alert("DOULEVEI!");
+    }
+  </script>
 
- async function login() {
-  try {
-
-    const scopes = ['username', 'payments'];
-
-    const auth = await Pi.authenticate(scopes, function(payment) {
-      console.log("Incomplete payment found", payment);
-    });
-
-    alert("Hello " + auth.user.username);
-
-  } catch (err) {
-    alert("Error: " + err);
-  }
-}
+</body>
+</html>
