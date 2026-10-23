@@ -1,40 +1,69 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ELESI Pi App</title>
-
-  <!-- Pi SDK -->
   <script src="https://sdk.minepi.com/pi-sdk.js"></script>
-
 </head>
-
 <body>
-
   <h1>Welcome to ELESI</h1>
-
-  <button onclick="login()">Login with Pi</button>
+  <button id="loginButton" type="button">Login with Pi</button>
+  <p id="status">Initializing Pi SDK...</p>
 
   <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      Pi.init({ version: "2.0", sandbox: true });
-    });
+    const button = document.getElementById("loginButton");
+    const status = document.getElementById("status");
+    let piReady = false;
 
-    async function login() {
+    async function initializePi() {
       try {
-        const scopes = ['username'];
+        if (!window.Pi) {
+          throw new Error("Pi SDK did not load. Open this app in Pi Browser.");
+        }
 
-        const auth = await Pi.authenticate(scopes, function(payment) {
-          console.log("Incomplete payment found", payment);
+        await window.Pi.init({
+          version: "2.0",
+          sandbox: false
         });
 
-        alert("Hello " + auth.user.username);
-
-      } catch (err) {
-        console.error(err);
-        alert("Error: " + err);
+        piReady = true;
+        status.textContent = "Ready to connect with Pi.";
+      } catch (error) {
+        status.textContent = "Pi initialization failed: " + error.message;
+        console.error(error);
       }
     }
-  </script>
 
+    button.addEventListener("click", async function () {
+      if (!piReady) {
+        status.textContent =
+          "Pi SDK is not ready. Open this app in Pi Browser and try again.";
+        return;
+      }
+
+      button.disabled = true;
+      status.textContent = "Connecting to Pi...";
+
+      try {
+        const auth = await window.Pi.authenticate(
+          ["username"],
+          function (payment) {
+            console.warn("Incomplete payment found:", payment);
+          }
+        );
+
+        status.textContent = "Welcome, " + auth.user.username + "!";
+      } catch (error) {
+        console.error("Pi login failed:", error);
+        status.textContent = "Login failed: " +
+          (error.message || String(error));
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    initializePi();
+  </script>
 </body>
 </html>
