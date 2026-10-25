@@ -3,23 +3,117 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ELESI Pi App</title>
+  <title>ELESI — Need a Solution? Offer One.</title>
   <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f6f7fb;
+      color: #25253a;
+    }
+    header {
+      background: #38215f;
+      color: white;
+      padding: 24px 18px;
+      text-align: center;
+    }
+    header h1 { margin: 0 0 8px; }
+    header p { margin: 0; }
+    main {
+      max-width: 760px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+    section {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 18px;
+      box-shadow: 0 2px 8px #0000000d;
+    }
+    button {
+      background: #6d45a0;
+      color: white;
+      border: 0;
+      border-radius: 8px;
+      padding: 12px 18px;
+      cursor: pointer;
+    }
+    button:disabled { opacity: .6; }
+    .item {
+      padding: 14px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .item:last-child { border-bottom: 0; }
+    .muted { color: #666; font-size: 14px; }
+    .solution {
+      margin: 10px 0 0 14px;
+      padding-left: 12px;
+      border-left: 3px solid #d8c8ea;
+    }
+  </style>
 </head>
 <body>
-  <h1>Welcome to ELESI</h1>
-  <button id="loginButton" type="button">Login with Pi</button>
-  <p id="status">Initializing Pi SDK...</p>
+  <header>
+    <h1>ELESI</h1>
+    <p>Need a Solution? Offer One.</p>
+  </header>
+
+  <main>
+    <section>
+      <h2>Connect with Pi</h2>
+      <button id="loginButton" type="button">
+        Login with Pi
+      </button>
+      <p id="status">Initializing Pi SDK...</p>
+    </section>
+
+    <section>
+      <h2>Community Problems</h2>
+      <p class="muted">
+        Discover problems shared by the community
+        and explore proposed solutions.
+      </p>
+      <div id="problems">Loading problems...</div>
+    </section>
+
+    <section>
+      <h2>Share a Problem or Solution</h2>
+      <p>
+        Community submissions are being prepared.
+        Secure Pi account verification will be required
+        before posting is enabled.
+      </p>
+    </section>
+  </main>
 
   <script>
     const button = document.getElementById("loginButton");
     const status = document.getElementById("status");
+    const problemsContainer = document.getElementById("problems");
+
     let piReady = false;
+
+    const supabaseUrl =
+      "https://epsuteaajchtaatyankl.supabase.co";
+
+    const supabaseKey =
+      "sb_publishable_DNeBJJU7YG3nENSC0DV9Vw_P0PgsRCP";
+
+    const db = window.supabase.createClient(
+      supabaseUrl,
+      supabaseKey
+    );
 
     async function initializePi() {
       try {
         if (!window.Pi) {
-          throw new Error("Pi SDK did not load. Open this app in Pi Browser.");
+          throw new Error(
+            "Pi SDK did not load. Open this app in Pi Browser."
+          );
         }
 
         await window.Pi.init({
@@ -30,7 +124,8 @@
         piReady = true;
         status.textContent = "Ready to connect with Pi.";
       } catch (error) {
-        status.textContent = "Pi initialization failed: " + error.message;
+        status.textContent =
+          "Pi initialization failed: " + error.message;
         console.error(error);
       }
     }
@@ -49,21 +144,108 @@
         const auth = await window.Pi.authenticate(
           ["username"],
           function (payment) {
-            console.warn("Incomplete payment found:", payment);
+            console.warn(
+              "Incomplete payment found:",
+              payment
+            );
           }
         );
 
-        status.textContent = "Welcome, " + auth.user.username + "!";
+        status.textContent =
+          "Welcome, " + auth.user.username + "!";
       } catch (error) {
         console.error("Pi login failed:", error);
-        status.textContent = "Login failed: " +
+        status.textContent =
+          "Login failed: " +
           (error.message || String(error));
       } finally {
         button.disabled = false;
       }
     });
 
+    async function loadProblems() {
+      try {
+        const { data: problems, error } = await db
+          .from("problems")
+          .select("id,title,description,pi_username,created_at")
+          .order("created_at", { ascending: false })
+          .limit(30);
+
+        if (error) throw error;
+
+        problemsContainer.replaceChildren();
+
+        if (!problems || problems.length === 0) {
+          problemsContainer.textContent =
+            "No problems posted yet.";
+          return;
+        }
+
+        for (const problem of problems) {
+          const item = document.createElement("div");
+          item.className = "item";
+
+          const heading = document.createElement("h3");
+          heading.textContent = problem.title;
+
+          const description = document.createElement("p");
+          description.textContent = problem.description;
+
+          const author = document.createElement("p");
+          author.className = "muted";
+          author.textContent =
+            "Posted by: " + problem.pi_username;
+
+          const solutionsContainer =
+            document.createElement("div");
+
+          item.append(
+            heading,
+            description,
+            author,
+            solutionsContainer
+          );
+          problemsContainer.appendChild(item);
+
+          const { data: solutions, error: solutionError } =
+            await db
+              .from("solutions")
+              .select("description,pi_username")
+              .eq("problem_id", problem.id)
+              .order("created_at", { ascending: true });
+
+          if (solutionError) {
+            solutionsContainer.textContent =
+              "Could not load solutions.";
+            continue;
+          }
+
+          for (const solution of solutions || []) {
+            const solutionItem =
+              document.createElement("div");
+            solutionItem.className = "solution";
+
+            const text = document.createElement("p");
+            text.textContent = solution.description;
+
+            const author = document.createElement("p");
+            author.className = "muted";
+            author.textContent =
+              "Suggested by: " + solution.pi_username;
+
+            solutionItem.append(text, author);
+            solutionsContainer.appendChild(solutionItem);
+          }
+        }
+      } catch (error) {
+        console.error("Database error:", error);
+        problemsContainer.textContent =
+          "Could not load community problems.";
+      }
+    }
+
     initializePi();
+    loadProblems();
   </script>
 </body>
 </html>
