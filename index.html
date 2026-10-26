@@ -1,32 +1,40 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ELESI — Need a Solution? Offer One.</title>
+
   <script src="https://sdk.minepi.com/pi-sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
       font-family: Arial, sans-serif;
       background: #f6f7fb;
       color: #25253a;
     }
+
     header {
       background: #38215f;
       color: white;
       padding: 24px 18px;
       text-align: center;
     }
+
     header h1 { margin: 0 0 8px; }
     header p { margin: 0; }
+
     main {
       max-width: 760px;
       margin: 24px auto;
       padding: 0 16px;
     }
+
     section {
       background: white;
       border-radius: 12px;
@@ -34,6 +42,7 @@
       margin-bottom: 18px;
       box-shadow: 0 2px 8px #0000000d;
     }
+
     button {
       background: #6d45a0;
       color: white;
@@ -42,20 +51,61 @@
       padding: 12px 18px;
       cursor: pointer;
     }
+
     button:disabled { opacity: .6; }
+
+    input, textarea {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font: inherit;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin-top: 12px;
+    }
+
+    .muted {
+      color: #666;
+      font-size: 14px;
+    }
+
     .item {
-      padding: 14px 0;
+      padding: 16px 0;
       border-bottom: 1px solid #eee;
     }
+
     .item:last-child { border-bottom: 0; }
-    .muted { color: #666; font-size: 14px; }
+
     .solution {
       margin: 10px 0 0 14px;
       padding-left: 12px;
       border-left: 3px solid #d8c8ea;
     }
+
+    .message {
+      margin-top: 12px;
+      overflow-wrap: anywhere;
+    }
+
+    .solution-form {
+      margin-top: 15px;
+    }
+
+    .hidden { display: none; }
   </style>
 </head>
+
 <body>
   <header>
     <h1>ELESI</h1>
@@ -65,54 +115,108 @@
   <main>
     <section>
       <h2>Connect with Pi</h2>
+
       <button id="loginButton" type="button">
         Login with Pi
       </button>
+
       <p id="status">Initializing Pi SDK...</p>
     </section>
 
     <section>
       <h2>Community Problems</h2>
+
       <p class="muted">
         Discover problems shared by the community
         and explore proposed solutions.
       </p>
+
       <div id="problems">Loading problems...</div>
+
+      <button id="refreshButton" type="button">
+        Refresh Problems
+      </button>
     </section>
 
     <section>
-      <h2>Share a Problem or Solution</h2>
-      <p>
-        Community submissions are being prepared.
-        Secure Pi account verification will be required
-        before posting is enabled.
+      <h2>Post a Problem</h2>
+
+      <p class="muted">
+        Sign in with Pi to share a problem
+        with the community.
       </p>
+
+      <form id="problemForm">
+        <label for="problemTitle">Problem title</label>
+
+        <input
+          id="problemTitle"
+          type="text"
+          minlength="5"
+          maxlength="150"
+          required
+          placeholder="What do you need help with?"
+        >
+
+        <label for="problemDescription">
+          Describe your problem
+        </label>
+
+        <textarea
+          id="problemDescription"
+          minlength="10"
+          maxlength="2000"
+          required
+          placeholder="Explain the problem..."
+        ></textarea>
+
+        <button type="submit">
+          Publish Problem
+        </button>
+      </form>
+
+      <p id="problemMessage" class="message"></p>
     </section>
   </main>
 
   <script>
-    const button = document.getElementById("loginButton");
-    const status = document.getElementById("status");
-    const problemsContainer = document.getElementById("problems");
-
-    let piReady = false;
-
     const supabaseUrl =
       "https://epsuteaajchtaatyankl.supabase.co";
 
     const supabaseKey =
       "sb_publishable_DNeBJJU7YG3nENSC0DV9Vw_P0PgsRCP";
 
+    const functionUrl =
+      supabaseUrl + "/functions/v1/elesi-submit";
+
     const db = window.supabase.createClient(
       supabaseUrl,
       supabaseKey
     );
 
+    const loginButton =
+      document.getElementById("loginButton");
+
+    const status =
+      document.getElementById("status");
+
+    const problemsContainer =
+      document.getElementById("problems");
+
+    const problemForm =
+      document.getElementById("problemForm");
+
+    const problemMessage =
+      document.getElementById("problemMessage");
+
+    let piReady = false;
+    let piAccessToken = null;
+
     async function initializePi() {
       try {
         if (!window.Pi) {
           throw new Error(
-            "Pi SDK did not load. Open this app in Pi Browser."
+            "Open ELESI in Pi Browser."
           );
         }
 
@@ -122,79 +226,282 @@
         });
 
         piReady = true;
-        status.textContent = "Ready to connect with Pi.";
+        status.textContent =
+          "Ready to connect with Pi.";
       } catch (error) {
         status.textContent =
-          "Pi initialization failed: " + error.message;
-        console.error(error);
+          "Pi initialization failed: " +
+          error.message;
       }
     }
 
-    button.addEventListener("click", async function () {
-      if (!piReady) {
+    loginButton.addEventListener(
+      "click",
+      async function () {
+        if (!piReady) {
+          status.textContent =
+            "Open ELESI in Pi Browser.";
+          return;
+        }
+
+        loginButton.disabled = true;
         status.textContent =
-          "Pi SDK is not ready. Open this app in Pi Browser and try again.";
-        return;
-      }
+          "Connecting to Pi...";
 
-      button.disabled = true;
-      status.textContent = "Connecting to Pi...";
+        try {
+          const auth =
+            await window.Pi.authenticate(
+              ["username"],
+              function (payment) {
+                console.warn(
+                  "Incomplete payment:",
+                  payment
+                );
+              }
+            );
 
-      try {
-        const auth = await window.Pi.authenticate(
-          ["username"],
-          function (payment) {
-            console.warn(
-              "Incomplete payment found:",
-              payment
+          if (!auth.accessToken) {
+            throw new Error(
+              "Pi access token missing."
             );
           }
-        );
 
-        status.textContent =
-          "Welcome, " + auth.user.username + "!";
-      } catch (error) {
-        console.error("Pi login failed:", error);
-        status.textContent =
-          "Login failed: " +
-          (error.message || String(error));
-      } finally {
-        button.disabled = false;
+          piAccessToken = auth.accessToken;
+
+          status.textContent =
+            "Welcome, " +
+            auth.user.username +
+            "! You can now post.";
+        } catch (error) {
+          piAccessToken = null;
+
+          status.textContent =
+            "Login failed: " +
+            (error.message || String(error));
+        } finally {
+          loginButton.disabled = false;
+        }
       }
-    });
+    );
+
+    async function submitToPiBackend(payload) {
+      if (!piAccessToken) {
+        throw new Error(
+          "Please log in with Pi first."
+        );
+      }
+
+      let response;
+
+      try {
+        response = await fetch(functionUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": supabaseKey,
+            "Authorization":
+              "Bearer " + piAccessToken
+          },
+          body: JSON.stringify(payload)
+        });
+      } catch {
+        throw new Error(
+          "Connection failed. Please try again."
+        );
+      }
+
+      const result = await response
+        .json()
+        .catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          result.error ||
+          "Submission failed."
+        );
+      }
+
+      return result;
+    }
+
+    problemForm.addEventListener(
+      "submit",
+      async function (event) {
+        event.preventDefault();
+
+        const title =
+          document.getElementById(
+            "problemTitle"
+          ).value.trim();
+
+        const description =
+          document.getElementById(
+            "problemDescription"
+          ).value.trim();
+
+        const submitButton =
+          problemForm.querySelector(
+            'button[type="submit"]'
+          );
+
+        submitButton.disabled = true;
+        problemMessage.textContent =
+          "Publishing problem...";
+
+        try {
+          await submitToPiBackend({
+            type: "problem",
+            title,
+            description
+          });
+
+          problemForm.reset();
+
+          problemMessage.textContent =
+            "Problem published successfully!";
+
+          await loadProblems();
+        } catch (error) {
+          problemMessage.textContent =
+            error.message;
+        } finally {
+          submitButton.disabled = false;
+        }
+      }
+    );
+
+    document.getElementById(
+      "refreshButton"
+    ).addEventListener("click", loadProblems);
+
+    function makeSolutionForm(problemId) {
+      const form =
+        document.createElement("form");
+
+      form.className = "solution-form";
+
+      const label =
+        document.createElement("label");
+
+      label.textContent = "Offer a Solution";
+
+      const textarea =
+        document.createElement("textarea");
+
+      textarea.required = true;
+      textarea.minLength = 10;
+      textarea.maxLength = 2000;
+
+      textarea.placeholder =
+        "Describe your suggested solution...";
+
+      const button =
+        document.createElement("button");
+
+      button.type = "submit";
+      button.textContent = "Publish Solution";
+
+      const message =
+        document.createElement("p");
+
+      message.className = "message";
+
+      form.append(
+        label,
+        textarea,
+        button,
+        message
+      );
+
+      form.addEventListener(
+        "submit",
+        async function (event) {
+          event.preventDefault();
+
+          button.disabled = true;
+          message.textContent =
+            "Publishing solution...";
+
+          try {
+            await submitToPiBackend({
+              type: "solution",
+              problem_id: problemId,
+              description:
+                textarea.value.trim()
+            });
+
+            textarea.value = "";
+
+            message.textContent =
+              "Solution published successfully!";
+
+            await loadProblems();
+          } catch (error) {
+            message.textContent =
+              error.message;
+          } finally {
+            button.disabled = false;
+          }
+        }
+      );
+
+      return form;
+    }
 
     async function loadProblems() {
+      problemsContainer.textContent =
+        "Loading problems...";
+
       try {
-        const { data: problems, error } = await db
+        const {
+          data: problems,
+          error
+        } = await db
           .from("problems")
-          .select("id,title,description,pi_username,created_at")
-          .order("created_at", { ascending: false })
+          .select(
+            "id,title,description,pi_username,created_at"
+          )
+          .order("created_at", {
+            ascending: false
+          })
           .limit(30);
 
         if (error) throw error;
 
         problemsContainer.replaceChildren();
 
-        if (!problems || problems.length === 0) {
+        if (!problems || !problems.length) {
           problemsContainer.textContent =
             "No problems posted yet.";
           return;
         }
 
         for (const problem of problems) {
-          const item = document.createElement("div");
+          const item =
+            document.createElement("div");
+
           item.className = "item";
 
-          const heading = document.createElement("h3");
-          heading.textContent = problem.title;
+          const heading =
+            document.createElement("h3");
 
-          const description = document.createElement("p");
-          description.textContent = problem.description;
+          heading.textContent =
+            problem.title;
 
-          const author = document.createElement("p");
+          const description =
+            document.createElement("p");
+
+          description.textContent =
+            problem.description;
+
+          const author =
+            document.createElement("p");
+
           author.className = "muted";
+
           author.textContent =
-            "Posted by: " + problem.pi_username;
+            "Posted by: " +
+            problem.pi_username;
 
           const solutionsContainer =
             document.createElement("div");
@@ -205,40 +512,68 @@
             author,
             solutionsContainer
           );
+
           problemsContainer.appendChild(item);
 
-          const { data: solutions, error: solutionError } =
-            await db
-              .from("solutions")
-              .select("description,pi_username")
-              .eq("problem_id", problem.id)
-              .order("created_at", { ascending: true });
+          const {
+            data: solutions,
+            error: solutionError
+          } = await db
+            .from("solutions")
+            .select(
+              "description,pi_username"
+            )
+            .eq("problem_id", problem.id)
+            .order("created_at", {
+              ascending: true
+            });
 
           if (solutionError) {
             solutionsContainer.textContent =
               "Could not load solutions.";
-            continue;
+          } else {
+            for (
+              const solution of solutions || []
+            ) {
+              const solutionItem =
+                document.createElement("div");
+
+              solutionItem.className =
+                "solution";
+
+              const text =
+                document.createElement("p");
+
+              text.textContent =
+                solution.description;
+
+              const by =
+                document.createElement("p");
+
+              by.className = "muted";
+
+              by.textContent =
+                "Suggested by: " +
+                solution.pi_username;
+
+              solutionItem.append(
+                text,
+                by
+              );
+
+              solutionsContainer.appendChild(
+                solutionItem
+              );
+            }
           }
 
-          for (const solution of solutions || []) {
-            const solutionItem =
-              document.createElement("div");
-            solutionItem.className = "solution";
-
-            const text = document.createElement("p");
-            text.textContent = solution.description;
-
-            const author = document.createElement("p");
-            author.className = "muted";
-            author.textContent =
-              "Suggested by: " + solution.pi_username;
-
-            solutionItem.append(text, author);
-            solutionsContainer.appendChild(solutionItem);
-          }
+          item.appendChild(
+            makeSolutionForm(problem.id)
+          );
         }
       } catch (error) {
-        console.error("Database error:", error);
+        console.error(error);
+
         problemsContainer.textContent =
           "Could not load community problems.";
       }
